@@ -1,0 +1,23 @@
+[tools]
+go = "1.25"
+
+[env]
+GOPATH = "{{config_root}}/.cache/go"
+GOMODCACHE = "{{config_root}}/.cache/go/pkg/mod"
+GOCACHE = "{{config_root}}/.cache/go-build"
+
+[tasks.fmt]
+description = "Format Go code"
+run = "go fmt ./..."
+
+[tasks.test]
+description = "Run unit tests"
+run = "go test ./..."
+
+[tasks.build]
+description = "Build the floppr CLI"
+run = "mkdir -p ./bin && go build -o ./bin/floppr ./cmd/floppr"
+
+[tasks.run]
+description = "Run the floppr CLI"
+run = "go run ./cmd/floppr"
