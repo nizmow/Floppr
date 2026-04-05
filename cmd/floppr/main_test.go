@@ -72,10 +72,10 @@ func TestRunCreateRequiresSourceAndOutput(t *testing.T) {
 	if err == nil {
 		t.Fatal("run() error = nil, want missing arguments failure")
 	}
-	if !strings.Contains(err.Error(), "create requires <source> and <output>") {
+	if !strings.Contains(err.Error(), "create requires <source> and optional [output]") {
 		t.Fatalf("run() error = %v, want required args failure", err)
 	}
-	if !strings.Contains(stderr.String(), "Usage:\n  floppr create <source> <output> [--label LABEL]") {
+	if !strings.Contains(stderr.String(), "Usage:\n  floppr create <source> [output] [--label LABEL]") {
 		t.Fatalf("stderr = %q, want create usage", stderr.String())
 	}
 }
@@ -88,7 +88,7 @@ func TestRunHelp(t *testing.T) {
 	if err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
-	if !strings.Contains(stdout.String(), "floppr create <source> <output> [--label LABEL]") {
+	if !strings.Contains(stdout.String(), "floppr create <source> [output] [--label LABEL]") {
 		t.Fatalf("stdout = %q, want root usage", stdout.String())
 	}
 }
@@ -115,6 +115,43 @@ func TestRunRejectsUnknownCommand(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "unknown command") {
 		t.Fatalf("run() error = %v, want unknown command failure", err)
+	}
+}
+
+func TestRunCreateDefaultsOutputAndLabel(t *testing.T) {
+	t.Parallel()
+
+	parent := t.TempDir()
+	source := filepath.Join(parent, "My Great Game Disk")
+	if err := os.MkdirAll(source, 0o755); err != nil {
+		t.Fatalf("MkdirAll(%q): %v", source, err)
+	}
+	writeFile(t, filepath.Join(source, "README.TXT"), []byte("auto defaults"))
+
+	err := run(context.Background(), []string{"create", source}, ioDiscard{}, ioDiscard{})
+	if err != nil {
+		t.Fatalf("run() error = %v", err)
+	}
+
+	output := filepath.Join(parent, "My Great Game Disk.img")
+	if _, err := os.Stat(output); err != nil {
+		t.Fatalf("Stat(%q): %v", output, err)
+	}
+
+	d, err := diskfs.Open(output)
+	if err != nil {
+		t.Fatalf("diskfs.Open(): %v", err)
+	}
+	defer d.Close()
+
+	imgFS, err := d.GetFilesystem(0)
+	if err != nil {
+		t.Fatalf("GetFilesystem(0): %v", err)
+	}
+	defer imgFS.Close()
+
+	if got := strings.TrimSpace(imgFS.Label()); got != "MYGREATGAME" {
+		t.Fatalf("Label() = %q, want %q", got, "MYGREATGAME")
 	}
 }
 

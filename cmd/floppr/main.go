@@ -48,8 +48,8 @@ func runCreate(ctx context.Context, args []string, stderr io.Writer) error {
 		_, _ = io.WriteString(stderr, createUsage())
 	}
 
-	label := fs.String("label", "FLOPPR", "DOS volume label")
-	fs.StringVar(label, "l", "FLOPPR", "DOS volume label")
+	label := fs.String("label", "", "DOS volume label")
+	fs.StringVar(label, "l", "", "DOS volume label")
 
 	normalizedArgs, err := normalizeCreateArgs(args)
 	if err != nil {
@@ -62,15 +62,26 @@ func runCreate(ctx context.Context, args []string, stderr io.Writer) error {
 	}
 
 	positionals := fs.Args()
-	if len(positionals) != 2 {
+	if len(positionals) < 1 || len(positionals) > 2 {
 		fs.Usage()
-		return errors.New("create requires <source> and <output>")
+		return errors.New("create requires <source> and optional [output]")
+	}
+
+	sourceDir := positionals[0]
+	outputPath := floppy.DefaultOutputPath(sourceDir)
+	if len(positionals) == 2 {
+		outputPath = positionals[1]
+	}
+
+	volumeLabel := *label
+	if volumeLabel == "" {
+		volumeLabel = floppy.DefaultVolumeLabel(sourceDir)
 	}
 
 	opts := floppy.Options{
-		SourceDir:   positionals[0],
-		OutputPath:  positionals[1],
-		VolumeLabel: *label,
+		SourceDir:   sourceDir,
+		OutputPath:  outputPath,
+		VolumeLabel: volumeLabel,
 	}
 
 	return floppy.CreateImage(ctx, opts)
@@ -85,13 +96,13 @@ func rootUsage() string {
 Floppr builds DOS 1.44MB floppy disk images from directories.
 
 Usage:
-  floppr create <source> <output> [--label LABEL]
+  floppr create <source> [output] [--label LABEL]
   floppr help
   floppr version
 
 Examples:
   floppr create ./MYGAME ./MYGAME.img --label MYGAME
-  floppr create ./disk-contents ./bootdisk.img
+  floppr create ./disk-contents
 `, "\n")
 }
 
@@ -100,15 +111,15 @@ func createUsage() string {
 Create a DOS 1.44MB floppy image from a directory.
 
 Usage:
-  floppr create <source> <output> [--label LABEL]
-  floppr create [--label LABEL] <source> <output>
+  floppr create <source> [output] [--label LABEL]
+  floppr create [--label LABEL] <source> [output]
 
 Arguments:
   source    Directory to package into the floppy image
-  output    Path to the output .img file
+  output    Optional path to the output .img file
 
 Options:
-  --label   DOS volume label (default: FLOPPR)
+  --label   DOS volume label (defaults from directory name)
   -l        Short form of --label
 `, "\n")
 }

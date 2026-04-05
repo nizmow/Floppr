@@ -46,6 +46,41 @@ type auditSummary struct {
 	rootEntries int
 }
 
+func DefaultOutputPath(sourceDir string) string {
+	clean := filepath.Clean(sourceDir)
+	base := filepath.Base(clean)
+	if base == "." || base == string(filepath.Separator) || base == "" {
+		base = "floppy"
+	}
+	return filepath.Join(filepath.Dir(clean), base+".img")
+}
+
+func DefaultVolumeLabel(sourceDir string) string {
+	base := strings.ToUpper(filepath.Base(filepath.Clean(sourceDir)))
+	if base == "." || base == string(filepath.Separator) || base == "" {
+		return "FLOPPR"
+	}
+
+	var b strings.Builder
+	for _, r := range base {
+		if b.Len() == 11 {
+			break
+		}
+		if r == '.' || r == ' ' {
+			continue
+		}
+		if isDOSChar(r) {
+			b.WriteRune(r)
+		}
+	}
+
+	if b.Len() == 0 {
+		return "FLOPPR"
+	}
+
+	return b.String()
+}
+
 func CreateImage(ctx context.Context, opts Options) error {
 	sourceDir, err := filepath.Abs(opts.SourceDir)
 	if err != nil {
