@@ -2,7 +2,10 @@ module github.com/nizmow/floppr
 
 go 1.25.7
 
-require github.com/diskfs/go-diskfs v1.9.1
+require (
+	github.com/diskfs/go-diskfs v1.9.1
+	github.com/urfave/cli/v3 v3.8.0
+)
 
 require (
 	github.com/anchore/go-lzo v0.1.0 // indirect

@@ -76,20 +76,17 @@ func TestRunCreateRequiresSourceAndOutput(t *testing.T) {
 	if !strings.Contains(err.Error(), "create requires <source> and optional [output]") {
 		t.Fatalf("run() error = %v, want required args failure", err)
 	}
-	if !strings.Contains(stderr.String(), "Usage:\n  floppr create <source> [output] [--format SIZE] [--label LABEL]") {
-		t.Fatalf("stderr = %q, want create usage", stderr.String())
-	}
 }
 
 func TestRunHelp(t *testing.T) {
 	t.Parallel()
 
 	var stdout bytes.Buffer
-	err := run(context.Background(), []string{"help"}, &stdout, io.Discard)
+	err := run(context.Background(), nil, &stdout, io.Discard)
 	if err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
-	if !strings.Contains(stdout.String(), "floppr create <source> [output] [--format SIZE] [--label LABEL]") {
+	if !strings.Contains(stdout.String(), "create") || !strings.Contains(stdout.String(), "Create DOS floppy disk images from directories") {
 		t.Fatalf("stdout = %q, want root usage", stdout.String())
 	}
 }
@@ -116,6 +113,22 @@ func TestRunRejectsUnknownCommand(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "unknown command") {
 		t.Fatalf("run() error = %v, want unknown command failure", err)
+	}
+}
+
+func TestRunCreateHelp(t *testing.T) {
+	t.Parallel()
+
+	var stdout bytes.Buffer
+	err := run(context.Background(), []string{"create", "--help"}, &stdout, io.Discard)
+	if err != nil {
+		t.Fatalf("run() error = %v", err)
+	}
+	if !strings.Contains(stdout.String(), "floppr create <source> [output] [--format SIZE] [--label LABEL]") {
+		t.Fatalf("stdout = %q, want create usage", stdout.String())
+	}
+	if !strings.Contains(stdout.String(), "--format") {
+		t.Fatalf("stdout = %q, want format flag", stdout.String())
 	}
 }
 
