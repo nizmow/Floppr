@@ -26,6 +26,17 @@ mise run build
 ./bin/floppr create ./mydir ./disk.img --label MYDISK
 ```
 
+## GitHub Builds
+
+GitHub Actions builds binaries from `HEAD` for:
+
+- Linux `amd64`
+- macOS `amd64`
+- macOS `arm64`
+- Windows `amd64`
+
+Artifacts are uploaded on pushes to `main` or `master`, and you can also trigger the workflow manually from the Actions tab.
+
 ## Tasks
 
 ```sh
