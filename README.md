@@ -1,47 +1,17 @@
 # Floppr
 
-`floppr` creates DOS 1.44MB floppy disk images from a source directory.
-
-Current behavior:
-
-- Creates a FAT12 floppy image sized to 1,474,560 bytes.
-- Fails before writing if the directory tree will not fit in FAT12 data space.
-- Fails if the root directory would exceed FAT12's 224-entry limit.
-- Accepts only DOS 8.3 filenames and DOS-safe volume labels for now.
-
-## Requirements
-
-- `mise`
-
-## Setup
-
-```sh
-mise install
-```
+Create DOS 1.44MB floppy disk images from a directory.
 
 ## Usage
 
 ```sh
-mise run build
-./bin/floppr create ./mydir ./disk.img --label MYDISK
+floppr create ./mydir ./disk.img --label MYDISK
 ```
 
-## GitHub Builds
+## Notes
 
-GitHub Actions builds binaries from `HEAD` for:
+- Writes a 1.44MB FAT12 floppy image.
+- Fails fast if the contents will not fit.
+- Requires DOS 8.3 filenames for now.
 
-- Linux `amd64`
-- macOS `amd64`
-- macOS `arm64`
-- Windows `amd64`
-
-Artifacts are uploaded on pushes to `main` or `master`, and you can also trigger the workflow manually from the Actions tab.
-
-## Tasks
-
-```sh
-mise run fmt
-mise run test
-mise run build
-mise run run -- create ./mydir ./disk.img
-```
+Development and release notes live in [docs/development.md](/Users/nizmow/Code/Floppr/docs/development.md).
