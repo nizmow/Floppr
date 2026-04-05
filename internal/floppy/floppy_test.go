@@ -23,6 +23,7 @@ func TestCreateImage(t *testing.T) {
 		SourceDir:   root,
 		OutputPath:  output,
 		VolumeLabel: "TESTDISK",
+		Format:      "1440",
 	})
 	if err != nil {
 		t.Fatalf("CreateImage() error = %v", err)
@@ -61,17 +62,22 @@ func TestCreateImageFailsForOversizePayload(t *testing.T) {
 	t.Parallel()
 
 	root := t.TempDir()
-	writeFile(t, filepath.Join(root, "BIG.BIN"), make([]byte, dataAreaBytes+1))
+	profile, err := ParseFormat("1440")
+	if err != nil {
+		t.Fatalf("ParseFormat(1440): %v", err)
+	}
+	writeFile(t, filepath.Join(root, "BIG.BIN"), make([]byte, profile.DataAreaBytes+1))
 
-	err := CreateImage(context.Background(), Options{
+	err = CreateImage(context.Background(), Options{
 		SourceDir:   root,
 		OutputPath:  filepath.Join(t.TempDir(), "disk.img"),
 		VolumeLabel: "BIGDISK",
+		Format:      "1440",
 	})
 	if err == nil {
 		t.Fatal("CreateImage() error = nil, want oversize failure")
 	}
-	if !strings.Contains(err.Error(), "only") {
+	if !strings.Contains(err.Error(), "1.44MB") {
 		t.Fatalf("CreateImage() error = %v, want capacity message", err)
 	}
 }
@@ -85,12 +91,44 @@ func TestCreateImageRejectsInvalidDOSNames(t *testing.T) {
 	err := CreateImage(context.Background(), Options{
 		SourceDir:  root,
 		OutputPath: filepath.Join(t.TempDir(), "disk.img"),
+		Format:     DefaultFormat(),
 	})
 	if err == nil {
 		t.Fatal("CreateImage() error = nil, want DOS filename validation failure")
 	}
 	if !strings.Contains(err.Error(), "DOS") {
 		t.Fatalf("CreateImage() error = %v, want DOS validation message", err)
+	}
+}
+
+func TestCreateImageSupportsDifferentFormats(t *testing.T) {
+	t.Parallel()
+
+	profile, err := ParseFormat("720")
+	if err != nil {
+		t.Fatalf("ParseFormat(720): %v", err)
+	}
+
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "README.TXT"), []byte("small disk"))
+	output := filepath.Join(t.TempDir(), "disk.img")
+
+	err = CreateImage(context.Background(), Options{
+		SourceDir:   root,
+		OutputPath:  output,
+		VolumeLabel: "SMALLDISK",
+		Format:      "720",
+	})
+	if err != nil {
+		t.Fatalf("CreateImage() error = %v", err)
+	}
+
+	info, err := os.Stat(output)
+	if err != nil {
+		t.Fatalf("Stat(%q): %v", output, err)
+	}
+	if info.Size() != profile.ImageBytes {
+		t.Fatalf("image size = %d, want %d", info.Size(), profile.ImageBytes)
 	}
 }
 

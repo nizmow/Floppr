@@ -50,6 +50,8 @@ func runCreate(ctx context.Context, args []string, stderr io.Writer) error {
 
 	label := fs.String("label", "", "DOS volume label")
 	fs.StringVar(label, "l", "", "DOS volume label")
+	format := fs.String("format", floppy.DefaultFormat(), "Floppy format in KB")
+	fs.StringVar(format, "f", floppy.DefaultFormat(), "Floppy format in KB")
 
 	normalizedArgs, err := normalizeCreateArgs(args)
 	if err != nil {
@@ -71,21 +73,23 @@ func runCreate(ctx context.Context, args []string, stderr io.Writer) error {
 		SourceDir:   positionals[0],
 		OutputPath:  defaultOutputPath(positionals),
 		VolumeLabel: defaultVolumeLabel(positionals[0], *label),
+		Format:      *format,
 	})
 }
 
 func rootUsage() string {
 	return strings.TrimLeft(`
-Floppr builds DOS 1.44MB floppy disk images from directories.
+Floppr builds DOS floppy disk images from directories.
 
 Usage:
-  floppr create <source> [output] [--label LABEL]
+  floppr create <source> [output] [--format SIZE] [--label LABEL]
   floppr help
   floppr version
 
 Examples:
   floppr create ./MYGAME ./MYGAME.img --label MYGAME
   floppr create ./disk-contents
+  floppr create ./disk-contents --format 720
 `, "\n")
 }
 
@@ -94,14 +98,16 @@ func createUsage() string {
 Create a DOS 1.44MB floppy image from a directory.
 
 Usage:
-  floppr create <source> [output] [--label LABEL]
-  floppr create [--label LABEL] <source> [output]
+  floppr create <source> [output] [--format SIZE] [--label LABEL]
+  floppr create [--format SIZE] [--label LABEL] <source> [output]
 
 Arguments:
   source    Directory to package into the floppy image
   output    Optional path to the output .img file
 
 Options:
+  --format  Floppy size in KB: 360, 720, 1200, 1440 (default: 1440)
+  -f        Short form of --format
   --label   DOS volume label (defaults from directory name)
   -l        Short form of --label
 `, "\n")
@@ -119,7 +125,7 @@ func normalizeCreateArgs(args []string) ([]string, error) {
 		case arg == "--":
 			positionals = append(positionals, args[i+1:]...)
 			i = len(args)
-		case arg == "--label" || arg == "-l":
+		case arg == "--label" || arg == "-l" || arg == "--format" || arg == "-f":
 			if i+1 >= len(args) {
 				return nil, fmt.Errorf("%s requires a value", arg)
 			}
@@ -128,6 +134,10 @@ func normalizeCreateArgs(args []string) ([]string, error) {
 		case strings.HasPrefix(arg, "--label="):
 			flags = append(flags, arg)
 		case strings.HasPrefix(arg, "-l="):
+			flags = append(flags, arg)
+		case strings.HasPrefix(arg, "--format="):
+			flags = append(flags, arg)
+		case strings.HasPrefix(arg, "-f="):
 			flags = append(flags, arg)
 		case strings.HasPrefix(arg, "-"):
 			flags = append(flags, arg)

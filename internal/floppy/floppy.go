@@ -16,20 +16,33 @@ import (
 )
 
 const (
-	floppyImageBytes  int64 = 1_474_560
 	floppySectorBytes int64 = 512
-	rootDirEntries          = 224
 	reservedSectors   int64 = 1
 	fatCopies         int64 = 2
-	fatSectors        int64 = 9
-	rootDirSectors    int64 = 14
-	dataAreaBytes           = (2880 - reservedSectors - fatCopies*fatSectors - rootDirSectors) * floppySectorBytes
 )
 
 type Options struct {
 	SourceDir   string
 	OutputPath  string
 	VolumeLabel string
+	Format      string
+}
+
+type FormatProfile struct {
+	Name          string
+	DisplayName   string
+	TotalSectors  int64
+	FATSectors    int64
+	RootEntries   int
+	ImageBytes    int64
+	DataAreaBytes int64
+}
+
+var formatProfiles = map[string]FormatProfile{
+	"360":  newFormatProfile("360", "360KB", 720, 2, 112),
+	"720":  newFormatProfile("720", "720KB", 1440, 3, 112),
+	"1200": newFormatProfile("1200", "1.2MB", 2400, 7, 224),
+	"1440": newFormatProfile("1440", "1.44MB", 2880, 9, 224),
 }
 
 type auditNode struct {
@@ -44,6 +57,40 @@ type auditNode struct {
 type auditSummary struct {
 	dataBytes   int64
 	rootEntries int
+}
+
+func newFormatProfile(name, displayName string, totalSectors, fatSectors int64, rootEntries int) FormatProfile {
+	rootDirSectors := int64(rootEntries*32) / floppySectorBytes
+	imageBytes := totalSectors * floppySectorBytes
+	dataAreaBytes := (totalSectors - reservedSectors - fatCopies*fatSectors - rootDirSectors) * floppySectorBytes
+	return FormatProfile{
+		Name:          name,
+		DisplayName:   displayName,
+		TotalSectors:  totalSectors,
+		FATSectors:    fatSectors,
+		RootEntries:   rootEntries,
+		ImageBytes:    imageBytes,
+		DataAreaBytes: dataAreaBytes,
+	}
+}
+
+func DefaultFormat() string {
+	return "1440"
+}
+
+func ParseFormat(name string) (FormatProfile, error) {
+	if name == "" {
+		name = DefaultFormat()
+	}
+	profile, ok := formatProfiles[name]
+	if !ok {
+		return FormatProfile{}, fmt.Errorf("unsupported floppy format %q, expected one of: %s", name, strings.Join(SupportedFormats(), ", "))
+	}
+	return profile, nil
+}
+
+func SupportedFormats() []string {
+	return []string{"360", "720", "1200", "1440"}
 }
 
 func DefaultOutputPath(sourceDir string) string {
@@ -68,6 +115,11 @@ func sourceBaseName(path string) string {
 }
 
 func CreateImage(ctx context.Context, opts Options) error {
+	profile, err := ParseFormat(opts.Format)
+	if err != nil {
+		return err
+	}
+
 	sourceDir, err := filepath.Abs(opts.SourceDir)
 	if err != nil {
 		return fmt.Errorf("resolve source path: %w", err)
@@ -98,18 +150,18 @@ func CreateImage(ctx context.Context, opts Options) error {
 	if err != nil {
 		return err
 	}
-	if summary.dataBytes > dataAreaBytes {
-		return fmt.Errorf("source requires %d bytes in the FAT12 data area, only %d bytes are available on a 1.44MB floppy", summary.dataBytes, dataAreaBytes)
+	if summary.dataBytes > profile.DataAreaBytes {
+		return fmt.Errorf("source requires %d bytes in the FAT12 data area, only %d bytes are available on a %s floppy", summary.dataBytes, profile.DataAreaBytes, profile.DisplayName)
 	}
-	if summary.rootEntries > rootDirEntries {
-		return fmt.Errorf("root directory needs %d entries, but FAT12 on a 1.44MB floppy only supports %d root entries", summary.rootEntries, rootDirEntries)
+	if summary.rootEntries > profile.RootEntries {
+		return fmt.Errorf("root directory needs %d entries, but FAT12 on a %s floppy only supports %d root entries", summary.rootEntries, profile.DisplayName, profile.RootEntries)
 	}
 
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
 		return fmt.Errorf("create output directory: %w", err)
 	}
 
-	theDisk, err := diskfs.Create(outputPath, floppyImageBytes, diskfs.SectorSizeDefault)
+	theDisk, err := diskfs.Create(outputPath, profile.ImageBytes, diskfs.SectorSizeDefault)
 	if err != nil {
 		return fmt.Errorf("create disk image: %w", err)
 	}

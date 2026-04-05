@@ -21,7 +21,7 @@ func TestRunCreateCreatesDiskImage(t *testing.T) {
 
 	output := filepath.Join(t.TempDir(), "cli.img")
 	err := run(context.Background(), []string{
-		"create", source, output, "--label", "CLITEST",
+		"create", source, output, "--label", "CLITEST", "--format", "1440",
 	}, io.Discard, io.Discard)
 	if err != nil {
 		t.Fatalf("run() error = %v", err)
@@ -55,7 +55,7 @@ func TestRunCreateFailsForOversizePayload(t *testing.T) {
 	writeFile(t, filepath.Join(source, "BIG.BIN"), make([]byte, 1_457_665))
 
 	err := run(context.Background(), []string{
-		"create", source, filepath.Join(t.TempDir(), "cli.img"), "--label", "TOOBIG",
+		"create", source, filepath.Join(t.TempDir(), "cli.img"), "--label", "TOOBIG", "--format", "1440",
 	}, io.Discard, io.Discard)
 	if err == nil {
 		t.Fatal("run() error = nil, want oversize failure")
@@ -76,7 +76,7 @@ func TestRunCreateRequiresSourceAndOutput(t *testing.T) {
 	if !strings.Contains(err.Error(), "create requires <source> and optional [output]") {
 		t.Fatalf("run() error = %v, want required args failure", err)
 	}
-	if !strings.Contains(stderr.String(), "Usage:\n  floppr create <source> [output] [--label LABEL]") {
+	if !strings.Contains(stderr.String(), "Usage:\n  floppr create <source> [output] [--format SIZE] [--label LABEL]") {
 		t.Fatalf("stderr = %q, want create usage", stderr.String())
 	}
 }
@@ -89,7 +89,7 @@ func TestRunHelp(t *testing.T) {
 	if err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
-	if !strings.Contains(stdout.String(), "floppr create <source> [output] [--label LABEL]") {
+	if !strings.Contains(stdout.String(), "floppr create <source> [output] [--format SIZE] [--label LABEL]") {
 		t.Fatalf("stdout = %q, want root usage", stdout.String())
 	}
 }
@@ -153,6 +153,27 @@ func TestRunCreateDefaultsOutputAndLabel(t *testing.T) {
 
 	if got := strings.TrimSpace(imgFS.Label()); got != "MYGREATGAME" {
 		t.Fatalf("Label() = %q, want %q", got, "MYGREATGAME")
+	}
+}
+
+func TestRunCreateSupportsFormatFlag(t *testing.T) {
+	t.Parallel()
+
+	source := t.TempDir()
+	writeFile(t, filepath.Join(source, "README.TXT"), []byte("720k"))
+	output := filepath.Join(t.TempDir(), "cli-720.img")
+
+	err := run(context.Background(), []string{"create", source, output, "--format", "720"}, io.Discard, io.Discard)
+	if err != nil {
+		t.Fatalf("run() error = %v", err)
+	}
+
+	info, err := os.Stat(output)
+	if err != nil {
+		t.Fatalf("Stat(%q): %v", output, err)
+	}
+	if info.Size() != 737280 {
+		t.Fatalf("image size = %d, want %d", info.Size(), 737280)
 	}
 }
 
