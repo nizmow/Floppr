@@ -48,37 +48,23 @@ type auditSummary struct {
 
 func DefaultOutputPath(sourceDir string) string {
 	clean := filepath.Clean(sourceDir)
-	base := filepath.Base(clean)
-	if base == "." || base == string(filepath.Separator) || base == "" {
-		base = "floppy"
-	}
-	return filepath.Join(filepath.Dir(clean), base+".img")
+	return filepath.Join(filepath.Dir(clean), sourceBaseName(clean)+".img")
 }
 
 func DefaultVolumeLabel(sourceDir string) string {
-	base := strings.ToUpper(filepath.Base(filepath.Clean(sourceDir)))
+	base := dosSafeUpper(sourceBaseName(filepath.Clean(sourceDir)))
+	if base == "FLOPPR" {
+		return "FLOPPR"
+	}
+	return base
+}
+
+func sourceBaseName(path string) string {
+	base := filepath.Base(path)
 	if base == "." || base == string(filepath.Separator) || base == "" {
-		return "FLOPPR"
+		return "floppy"
 	}
-
-	var b strings.Builder
-	for _, r := range base {
-		if b.Len() == 11 {
-			break
-		}
-		if r == '.' || r == ' ' {
-			continue
-		}
-		if isDOSChar(r) {
-			b.WriteRune(r)
-		}
-	}
-
-	if b.Len() == 0 {
-		return "FLOPPR"
-	}
-
-	return b.String()
+	return base
 }
 
 func CreateImage(ctx context.Context, opts Options) error {
@@ -206,15 +192,10 @@ func auditDir(ctx context.Context, dir *auditNode, summary *auditSummary, isRoot
 			return fmt.Errorf("%q: only regular files and directories are supported", filepath.Join(dir.hostPath, entry.Name()))
 		}
 
-		childImagePath := filepath.ToSlash(filepath.Join(dir.imagePath, dosName))
-		if !strings.HasPrefix(childImagePath, "/") {
-			childImagePath = "/" + childImagePath
-		}
-
 		child := &auditNode{
 			name:      dosName,
 			hostPath:  filepath.Join(dir.hostPath, entry.Name()),
-			imagePath: childImagePath,
+			imagePath: joinImagePath(dir.imagePath, dosName),
 			isDir:     info.IsDir(),
 			size:      info.Size(),
 		}
@@ -294,10 +275,8 @@ func normalizeVolumeLabel(label string) (string, error) {
 	if strings.Contains(label, ".") {
 		return "", fmt.Errorf("volume label %q must not contain dots", label)
 	}
-	for _, r := range label {
-		if !isDOSChar(r) {
-			return "", fmt.Errorf("volume label %q contains unsupported DOS character %q", label, r)
-		}
+	if err := validateDOSChars(label, fmt.Sprintf("volume label %q", label)); err != nil {
+		return "", err
 	}
 	return label, nil
 }
@@ -314,13 +293,8 @@ func normalizeDOSName(name string) (string, error) {
 	}
 
 	base := parts[0]
-	if base == "" || len(base) > 8 {
-		return "", fmt.Errorf("base name %q must be 1-8 DOS characters", name)
-	}
-	for _, r := range base {
-		if !isDOSChar(r) {
-			return "", fmt.Errorf("base name %q contains unsupported DOS character %q", name, r)
-		}
+	if err := validateDOSPart(base, 8, fmt.Sprintf("base name %q", name)); err != nil {
+		return "", err
 	}
 
 	if len(parts) == 1 {
@@ -328,16 +302,54 @@ func normalizeDOSName(name string) (string, error) {
 	}
 
 	ext := parts[1]
-	if ext == "" || len(ext) > 3 {
-		return "", fmt.Errorf("extension %q must be 1-3 DOS characters", name)
-	}
-	for _, r := range ext {
-		if !isDOSChar(r) {
-			return "", fmt.Errorf("extension %q contains unsupported DOS character %q", name, r)
-		}
+	if err := validateDOSPart(ext, 3, fmt.Sprintf("extension %q", name)); err != nil {
+		return "", err
 	}
 
 	return base + "." + ext, nil
+}
+
+func joinImagePath(parent, name string) string {
+	path := filepath.ToSlash(filepath.Join(parent, name))
+	if strings.HasPrefix(path, "/") {
+		return path
+	}
+	return "/" + path
+}
+
+func dosSafeUpper(name string) string {
+	var b strings.Builder
+	for _, r := range strings.ToUpper(name) {
+		if b.Len() == 11 {
+			break
+		}
+		if r == '.' || r == ' ' {
+			continue
+		}
+		if isDOSChar(r) {
+			b.WriteRune(r)
+		}
+	}
+	if b.Len() == 0 {
+		return "FLOPPR"
+	}
+	return b.String()
+}
+
+func validateDOSPart(value string, maxLen int, what string) error {
+	if value == "" || len(value) > maxLen {
+		return fmt.Errorf("%s must be 1-%d DOS characters", what, maxLen)
+	}
+	return validateDOSChars(value, what)
+}
+
+func validateDOSChars(value, what string) error {
+	for _, r := range value {
+		if !isDOSChar(r) {
+			return fmt.Errorf("%s contains unsupported DOS character %q", what, r)
+		}
+	}
+	return nil
 }
 
 func isDOSChar(r rune) bool {

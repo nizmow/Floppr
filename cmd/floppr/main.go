@@ -23,16 +23,16 @@ func main() {
 
 func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
-		printRootUsage(stdout)
-		return nil
+		_, err := io.WriteString(stdout, rootUsage())
+		return err
 	}
 
 	switch args[0] {
 	case "create":
 		return runCreate(ctx, args[1:], stderr)
 	case "help", "-h", "--help":
-		printRootUsage(stdout)
-		return nil
+		_, err := io.WriteString(stdout, rootUsage())
+		return err
 	case "version", "--version":
 		_, err := fmt.Fprintf(stdout, "floppr %s\n", version)
 		return err
@@ -67,28 +67,11 @@ func runCreate(ctx context.Context, args []string, stderr io.Writer) error {
 		return errors.New("create requires <source> and optional [output]")
 	}
 
-	sourceDir := positionals[0]
-	outputPath := floppy.DefaultOutputPath(sourceDir)
-	if len(positionals) == 2 {
-		outputPath = positionals[1]
-	}
-
-	volumeLabel := *label
-	if volumeLabel == "" {
-		volumeLabel = floppy.DefaultVolumeLabel(sourceDir)
-	}
-
-	opts := floppy.Options{
-		SourceDir:   sourceDir,
-		OutputPath:  outputPath,
-		VolumeLabel: volumeLabel,
-	}
-
-	return floppy.CreateImage(ctx, opts)
-}
-
-func printRootUsage(w io.Writer) {
-	_, _ = io.WriteString(w, rootUsage())
+	return floppy.CreateImage(ctx, floppy.Options{
+		SourceDir:   positionals[0],
+		OutputPath:  defaultOutputPath(positionals),
+		VolumeLabel: defaultVolumeLabel(positionals[0], *label),
+	})
 }
 
 func rootUsage() string {
@@ -154,4 +137,18 @@ func normalizeCreateArgs(args []string) ([]string, error) {
 	}
 
 	return append(flags, positionals...), nil
+}
+
+func defaultOutputPath(positionals []string) string {
+	if len(positionals) == 2 {
+		return positionals[1]
+	}
+	return floppy.DefaultOutputPath(positionals[0])
+}
+
+func defaultVolumeLabel(sourceDir, label string) string {
+	if label != "" {
+		return label
+	}
+	return floppy.DefaultVolumeLabel(sourceDir)
 }

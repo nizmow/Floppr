@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,7 +22,7 @@ func TestRunCreateCreatesDiskImage(t *testing.T) {
 	output := filepath.Join(t.TempDir(), "cli.img")
 	err := run(context.Background(), []string{
 		"create", source, output, "--label", "CLITEST",
-	}, ioDiscard{}, ioDiscard{})
+	}, io.Discard, io.Discard)
 	if err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
@@ -55,7 +56,7 @@ func TestRunCreateFailsForOversizePayload(t *testing.T) {
 
 	err := run(context.Background(), []string{
 		"create", source, filepath.Join(t.TempDir(), "cli.img"), "--label", "TOOBIG",
-	}, ioDiscard{}, ioDiscard{})
+	}, io.Discard, io.Discard)
 	if err == nil {
 		t.Fatal("run() error = nil, want oversize failure")
 	}
@@ -68,7 +69,7 @@ func TestRunCreateRequiresSourceAndOutput(t *testing.T) {
 	t.Parallel()
 
 	var stderr bytes.Buffer
-	err := run(context.Background(), []string{"create"}, ioDiscard{}, &stderr)
+	err := run(context.Background(), []string{"create"}, io.Discard, &stderr)
 	if err == nil {
 		t.Fatal("run() error = nil, want missing arguments failure")
 	}
@@ -84,7 +85,7 @@ func TestRunHelp(t *testing.T) {
 	t.Parallel()
 
 	var stdout bytes.Buffer
-	err := run(context.Background(), []string{"help"}, &stdout, ioDiscard{})
+	err := run(context.Background(), []string{"help"}, &stdout, io.Discard)
 	if err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
@@ -97,7 +98,7 @@ func TestRunVersion(t *testing.T) {
 	t.Parallel()
 
 	var stdout bytes.Buffer
-	err := run(context.Background(), []string{"version"}, &stdout, ioDiscard{})
+	err := run(context.Background(), []string{"version"}, &stdout, io.Discard)
 	if err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
@@ -109,7 +110,7 @@ func TestRunVersion(t *testing.T) {
 func TestRunRejectsUnknownCommand(t *testing.T) {
 	t.Parallel()
 
-	err := run(context.Background(), []string{"wat"}, ioDiscard{}, ioDiscard{})
+	err := run(context.Background(), []string{"wat"}, io.Discard, io.Discard)
 	if err == nil {
 		t.Fatal("run() error = nil, want unknown command failure")
 	}
@@ -128,7 +129,7 @@ func TestRunCreateDefaultsOutputAndLabel(t *testing.T) {
 	}
 	writeFile(t, filepath.Join(source, "README.TXT"), []byte("auto defaults"))
 
-	err := run(context.Background(), []string{"create", source}, ioDiscard{}, ioDiscard{})
+	err := run(context.Background(), []string{"create", source}, io.Discard, io.Discard)
 	if err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
@@ -163,10 +164,4 @@ func writeFile(t *testing.T, path string, data []byte) {
 	if err := os.WriteFile(path, data, 0o644); err != nil {
 		t.Fatalf("WriteFile(%q): %v", path, err)
 	}
-}
-
-type ioDiscard struct{}
-
-func (ioDiscard) Write(p []byte) (int, error) {
-	return len(p), nil
 }
