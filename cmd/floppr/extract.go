@@ -17,20 +17,20 @@ func newExtractCommand(stderr io.Writer) *cli.Command {
 	return &cli.Command{
 		Name:      "extract",
 		Usage:     "Extract files from one or more floppy images",
-		UsageText: "floppr extract <source-or-glob> <destination>",
-		ArgsUsage: "<source-or-glob> <destination>",
+		UsageText: "floppr extract <source-or-glob>... <destination>",
+		ArgsUsage: "<source-or-glob>... <destination>",
 		ErrWriter: stderr,
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-			if cmd.Args().Len() != 2 {
-				return fmt.Errorf("extract requires <source-or-glob> and <destination>")
+			if cmd.Args().Len() < 2 {
+				return fmt.Errorf("extract requires one or more <source-or-glob> values and a <destination>")
 			}
 
-			sources, err := expandSources(cmd.Args().Get(0))
+			sources, err := collectSources(cmd.Args().Slice()[:cmd.Args().Len()-1])
 			if err != nil {
 				return err
 			}
 
-			destinations := extractionDestinations(sources, cmd.Args().Get(1))
+			destinations := extractionDestinations(sources, cmd.Args().Get(cmd.Args().Len()-1))
 			for i, source := range sources {
 				if err := floppy.ExtractImage(ctx, source, destinations[i]); err != nil {
 					return err
@@ -39,6 +39,18 @@ func newExtractCommand(stderr io.Writer) *cli.Command {
 			return nil
 		},
 	}
+}
+
+func collectSources(inputs []string) ([]string, error) {
+	var sources []string
+	for _, input := range inputs {
+		expanded, err := expandSources(input)
+		if err != nil {
+			return nil, err
+		}
+		sources = append(sources, expanded...)
+	}
+	return sources, nil
 }
 
 func expandSources(source string) ([]string, error) {

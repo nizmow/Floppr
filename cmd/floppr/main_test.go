@@ -258,6 +258,50 @@ func TestRunExtractGlobCreatesPerImageDirectories(t *testing.T) {
 	}
 }
 
+func TestRunExtractMultipleExpandedSourcesCreatesPerImageDirectories(t *testing.T) {
+	t.Parallel()
+
+	imagesDir := t.TempDir()
+	sourceA := filepath.Join(t.TempDir(), "disk-a")
+	sourceB := filepath.Join(t.TempDir(), "disk-b")
+	writeFile(t, filepath.Join(sourceA, "A.TXT"), []byte("disk a"))
+	writeFile(t, filepath.Join(sourceB, "B.TXT"), []byte("disk b"))
+
+	imageA := filepath.Join(imagesDir, "disk-a.img")
+	imageB := filepath.Join(imagesDir, "disk-b.img")
+
+	err := run(context.Background(), []string{"create", sourceA, imageA}, io.Discard, io.Discard)
+	if err != nil {
+		t.Fatalf("run(create sourceA) error = %v", err)
+	}
+	err = run(context.Background(), []string{"create", sourceB, imageB}, io.Discard, io.Discard)
+	if err != nil {
+		t.Fatalf("run(create sourceB) error = %v", err)
+	}
+
+	dest := filepath.Join(t.TempDir(), "extract")
+	err = run(context.Background(), []string{"extract", imageA, imageB, dest}, io.Discard, io.Discard)
+	if err != nil {
+		t.Fatalf("run(extract multiple sources) error = %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(dest, "disk-a", "A.TXT"))
+	if err != nil {
+		t.Fatalf("ReadFile(disk-a/A.TXT): %v", err)
+	}
+	if string(data) != "disk a" {
+		t.Fatalf("disk-a/A.TXT = %q, want %q", string(data), "disk a")
+	}
+
+	data, err = os.ReadFile(filepath.Join(dest, "disk-b", "B.TXT"))
+	if err != nil {
+		t.Fatalf("ReadFile(disk-b/B.TXT): %v", err)
+	}
+	if string(data) != "disk b" {
+		t.Fatalf("disk-b/B.TXT = %q, want %q", string(data), "disk b")
+	}
+}
+
 func TestRunExtractRequiresSourceAndDestination(t *testing.T) {
 	t.Parallel()
 
@@ -265,7 +309,7 @@ func TestRunExtractRequiresSourceAndDestination(t *testing.T) {
 	if err == nil {
 		t.Fatal("run() error = nil, want missing arguments failure")
 	}
-	if !strings.Contains(err.Error(), "extract requires <source-or-glob> and <destination>") {
+	if !strings.Contains(err.Error(), "extract requires one or more <source-or-glob> values and a <destination>") {
 		t.Fatalf("run() error = %v, want required args failure", err)
 	}
 }
@@ -278,7 +322,7 @@ func TestRunExtractHelp(t *testing.T) {
 	if err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
-	if !strings.Contains(stdout.String(), "floppr extract <source-or-glob> <destination>") {
+	if !strings.Contains(stdout.String(), "floppr extract <source-or-glob>... <destination>") {
 		t.Fatalf("stdout = %q, want extract usage", stdout.String())
 	}
 }

@@ -32,6 +32,10 @@ floppr extract ./bootdisk.img ./bootdisk
 floppr extract './disks/*.img' ./extracted
 ```
 
+```sh
+floppr extract *.img ./extracted
+```
+
 ## Options
 
 ```sh
@@ -39,14 +43,14 @@ floppr create <source> [output] [--label LABEL]
 ```
 
 ```sh
-floppr extract <source-or-glob> <destination>
+floppr extract <source-or-glob>... <destination>
 ```
 
 - `source`: directory to package into the floppy image
 - `output`: optional output path, defaults to `<dirname>.img`
 - `--format`, `-f`: floppy size in KB, one of `360`, `720`, `1200`, `1440`
 - `--label`, `-l`: optional DOS volume label, defaults from the directory name and is truncated to 11 DOS-safe characters
-- `source-or-glob`: floppy image path, or a glob such as `./disks/*.img`
+- `source-or-glob`: one or more floppy image paths, or glob patterns such as `./disks/*.img`
 - `destination`: target directory; for a single image the contents are extracted directly here, and for multiple images each image is extracted into its own subdirectory named after the image file
 
 ## Notes
@@ -56,6 +60,6 @@ floppr extract <source-or-glob> <destination>
 - Defaults output to `<dirname>.img`.
 - Defaults label from the directory name.
 - Requires DOS 8.3 filenames for now.
-- Globs should usually be quoted so your shell does not expand them before `floppr` sees the pattern.
+- Both quoted globs and shell-expanded globs work for `extract`.
 
 Development and release notes live in [docs/development.md](/Users/nizmow/Code/Floppr/docs/development.md).
