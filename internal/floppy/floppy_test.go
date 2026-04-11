@@ -132,6 +132,48 @@ func TestCreateImageSupportsDifferentFormats(t *testing.T) {
 	}
 }
 
+func TestExtractImage(t *testing.T) {
+	t.Parallel()
+
+	source := t.TempDir()
+	writeFile(t, filepath.Join(source, "README.TXT"), []byte("hello floppy"))
+	mustMkdir(t, filepath.Join(source, "BIN"))
+	writeFile(t, filepath.Join(source, "BIN", "RUN.EXE"), []byte("binary"))
+
+	image := filepath.Join(t.TempDir(), "disk.img")
+	err := CreateImage(context.Background(), Options{
+		SourceDir:   source,
+		OutputPath:  image,
+		VolumeLabel: "TESTDISK",
+		Format:      "1440",
+	})
+	if err != nil {
+		t.Fatalf("CreateImage() error = %v", err)
+	}
+
+	dest := filepath.Join(t.TempDir(), "extract")
+	err = ExtractImage(context.Background(), image, dest)
+	if err != nil {
+		t.Fatalf("ExtractImage() error = %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(dest, "README.TXT"))
+	if err != nil {
+		t.Fatalf("ReadFile(README.TXT): %v", err)
+	}
+	if string(data) != "hello floppy" {
+		t.Fatalf("README.TXT = %q, want %q", string(data), "hello floppy")
+	}
+
+	data, err = os.ReadFile(filepath.Join(dest, "BIN", "RUN.EXE"))
+	if err != nil {
+		t.Fatalf("ReadFile(BIN/RUN.EXE): %v", err)
+	}
+	if string(data) != "binary" {
+		t.Fatalf("BIN/RUN.EXE = %q, want %q", string(data), "binary")
+	}
+}
+
 func mustMkdir(t *testing.T, path string) {
 	t.Helper()
 	if err := os.MkdirAll(path, 0o755); err != nil {
