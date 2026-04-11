@@ -1,6 +1,8 @@
 # Floppr
 
-Create DOS 1.44MB floppy disk images from a directory.
+Create DOS floppy disk images from a directory. I write this mostly just to scratch an itch -- lots of DOS programs are just available as raw files, which means you have to mess around a bit to get an image to use with 86box or a Gotek. This makes it pretty easy.
+
+It supports 360k, 720k, 1.2MB and 1.44MB disk image sizes. It does no normalisation of filenames and will fail fast if your input includes names that aren't DOS friendly, or if the directory is too big for the disk size.
 
 ## Usage
 
