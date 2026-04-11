@@ -302,6 +302,91 @@ func TestRunExtractMultipleExpandedSourcesCreatesPerImageDirectories(t *testing.
 	}
 }
 
+func TestRunExtractFlatGlobWritesIntoDestinationRoot(t *testing.T) {
+	t.Parallel()
+
+	imagesDir := t.TempDir()
+	sourceA := filepath.Join(t.TempDir(), "disk-a")
+	sourceB := filepath.Join(t.TempDir(), "disk-b")
+	writeFile(t, filepath.Join(sourceA, "A.TXT"), []byte("disk a"))
+	writeFile(t, filepath.Join(sourceB, "B.TXT"), []byte("disk b"))
+
+	err := run(context.Background(), []string{"create", sourceA, filepath.Join(imagesDir, "disk-a.img")}, io.Discard, io.Discard)
+	if err != nil {
+		t.Fatalf("run(create sourceA) error = %v", err)
+	}
+	err = run(context.Background(), []string{"create", sourceB, filepath.Join(imagesDir, "disk-b.img")}, io.Discard, io.Discard)
+	if err != nil {
+		t.Fatalf("run(create sourceB) error = %v", err)
+	}
+
+	dest := filepath.Join(t.TempDir(), "extract")
+	err = run(context.Background(), []string{"extract", "--flat", filepath.Join(imagesDir, "*.img"), dest}, io.Discard, io.Discard)
+	if err != nil {
+		t.Fatalf("run(extract --flat glob) error = %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(dest, "A.TXT"))
+	if err != nil {
+		t.Fatalf("ReadFile(A.TXT): %v", err)
+	}
+	if string(data) != "disk a" {
+		t.Fatalf("A.TXT = %q, want %q", string(data), "disk a")
+	}
+
+	data, err = os.ReadFile(filepath.Join(dest, "B.TXT"))
+	if err != nil {
+		t.Fatalf("ReadFile(B.TXT): %v", err)
+	}
+	if string(data) != "disk b" {
+		t.Fatalf("B.TXT = %q, want %q", string(data), "disk b")
+	}
+}
+
+func TestRunExtractFlatExpandedSourcesWritesIntoDestinationRoot(t *testing.T) {
+	t.Parallel()
+
+	imagesDir := t.TempDir()
+	sourceA := filepath.Join(t.TempDir(), "disk-a")
+	sourceB := filepath.Join(t.TempDir(), "disk-b")
+	writeFile(t, filepath.Join(sourceA, "A.TXT"), []byte("disk a"))
+	writeFile(t, filepath.Join(sourceB, "B.TXT"), []byte("disk b"))
+
+	imageA := filepath.Join(imagesDir, "disk-a.img")
+	imageB := filepath.Join(imagesDir, "disk-b.img")
+
+	err := run(context.Background(), []string{"create", sourceA, imageA}, io.Discard, io.Discard)
+	if err != nil {
+		t.Fatalf("run(create sourceA) error = %v", err)
+	}
+	err = run(context.Background(), []string{"create", sourceB, imageB}, io.Discard, io.Discard)
+	if err != nil {
+		t.Fatalf("run(create sourceB) error = %v", err)
+	}
+
+	dest := filepath.Join(t.TempDir(), "extract")
+	err = run(context.Background(), []string{"extract", "--flat", imageA, imageB, dest}, io.Discard, io.Discard)
+	if err != nil {
+		t.Fatalf("run(extract --flat multiple sources) error = %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(dest, "A.TXT"))
+	if err != nil {
+		t.Fatalf("ReadFile(A.TXT): %v", err)
+	}
+	if string(data) != "disk a" {
+		t.Fatalf("A.TXT = %q, want %q", string(data), "disk a")
+	}
+
+	data, err = os.ReadFile(filepath.Join(dest, "B.TXT"))
+	if err != nil {
+		t.Fatalf("ReadFile(B.TXT): %v", err)
+	}
+	if string(data) != "disk b" {
+		t.Fatalf("B.TXT = %q, want %q", string(data), "disk b")
+	}
+}
+
 func TestRunExtractRequiresSourceAndDestination(t *testing.T) {
 	t.Parallel()
 
@@ -324,6 +409,9 @@ func TestRunExtractHelp(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), "floppr extract <source-or-glob>... <destination>") {
 		t.Fatalf("stdout = %q, want extract usage", stdout.String())
+	}
+	if !strings.Contains(stdout.String(), "--flat") {
+		t.Fatalf("stdout = %q, want flat flag", stdout.String())
 	}
 }
 

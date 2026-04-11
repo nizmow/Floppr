@@ -36,6 +36,10 @@ floppr extract './disks/*.img' ./extracted
 floppr extract *.img ./extracted
 ```
 
+```sh
+floppr extract --flat *.img ./extracted
+```
+
 ## Options
 
 ```sh
@@ -52,6 +56,7 @@ floppr extract <source-or-glob>... <destination>
 - `--label`, `-l`: optional DOS volume label, defaults from the directory name and is truncated to 11 DOS-safe characters
 - `source-or-glob`: one or more floppy image paths, or glob patterns such as `./disks/*.img`
 - `destination`: target directory; for a single image the contents are extracted directly here, and for multiple images each image is extracted into its own subdirectory named after the image file
+- `--flat`: when extracting multiple images, write directly into the destination instead of creating per-image subdirectories
 
 ## Notes
 
@@ -61,5 +66,6 @@ floppr extract <source-or-glob>... <destination>
 - Defaults label from the directory name.
 - Requires DOS 8.3 filenames for now.
 - Both quoted globs and shell-expanded globs work for `extract`.
+- `--flat` is only safe when you know files from different images will not collide.
 
 Development and release notes live in [docs/development.md](/Users/nizmow/Code/Floppr/docs/development.md).

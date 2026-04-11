@@ -20,6 +20,12 @@ func newExtractCommand(stderr io.Writer) *cli.Command {
 		UsageText: "floppr extract <source-or-glob>... <destination>",
 		ArgsUsage: "<source-or-glob>... <destination>",
 		ErrWriter: stderr,
+		Flags: []cli.Flag{
+			&cli.BoolFlag{
+				Name:  "flat",
+				Usage: "Extract multiple images directly into the destination without per-image subdirectories",
+			},
+		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Args().Len() < 2 {
 				return fmt.Errorf("extract requires one or more <source-or-glob> values and a <destination>")
@@ -30,7 +36,7 @@ func newExtractCommand(stderr io.Writer) *cli.Command {
 				return err
 			}
 
-			destinations := extractionDestinations(sources, cmd.Args().Get(cmd.Args().Len()-1))
+			destinations := extractionDestinations(sources, cmd.Args().Get(cmd.Args().Len()-1), cmd.Bool("flat"))
 			for i, source := range sources {
 				if err := floppy.ExtractImage(ctx, source, destinations[i]); err != nil {
 					return err
@@ -69,9 +75,13 @@ func expandSources(source string) ([]string, error) {
 	return matches, nil
 }
 
-func extractionDestinations(sources []string, destination string) []string {
-	if len(sources) <= 1 {
-		return []string{destination}
+func extractionDestinations(sources []string, destination string, flat bool) []string {
+	if len(sources) <= 1 || flat {
+		results := make([]string, len(sources))
+		for i := range sources {
+			results[i] = destination
+		}
+		return results
 	}
 
 	results := make([]string, len(sources))
